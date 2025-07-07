@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>자습실 출석 관리</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(to bottom right, #ebf8ff, #e0e7ff);
+      margin: 0;
+      padding: 1rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .tabs button {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      border: none;
+      margin-right: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .tabs .active {
+      background: #2563eb;
+      color: white;
+    }
+
+    .tabs .inactive {
+      background: white;
+      color: #4b5563;
+      border: 1px solid #e5e7eb;
+    }
+
+    .message {
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+    }
+
+    .success {
+      background-color: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .error {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    input {
+      width: 1px;
+      padding: 0;
+      font-size: 1.25rem;
+      font-size: 1px;
+      text-align: center;
+      /* border: 2px solid #d1d5db; */
+      border: 0px solid #d1d5db;
+      border-radius: 0.75rem;
+      font-family: monospace;
+      text-transform: uppercase;
+      /* box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); */
+      outline: none;
+      caret-color: transparent;
+      ime-mode: disabled;
+    }
+
+    .entry {
+      display: flex;
+      justify-content: space-between;
+      background-color: #f0fdf4;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      border: 1px solid #bbf7d0;
+      border-radius: 0.5rem;
+    }
+
+    .log {
+      display: flex;
+      justify-content: space-between;
+      background-color: #f9fafb;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      border-radius: 0.5rem;
+    }
+
+    .badge {
+      padding: 0.2rem 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+    }
+
+    .badge-entry {
+      background-color: #bbf7d0;
+      color: #065f46;
+    }
+
+    .badge-exit {
+      background-color: #fecaca;
+      color: #991b1b;
+    }
+
+    #current-list:not(:empty)+#empty-current-message,
+    #log-list:not(:empty)+#empty-log-message {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1 style="text-align: center; font-size: 2rem; font-weight: bold;">자습실 출석 관리</h1>
+
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 1.25rem;">현재 출석 현황</h2>
+        <div id="current-count"
+          style="background: #dbeafe; color: #1d4ed8; padding: 0.5rem 1rem; border-radius: 9999px;">
+          0명 재실
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs" style="margin-bottom: 1.5rem;">
+      <button id="tab-input" class="active">출석 입력</button>
+      <button id="tab-current" class="inactive">현재 출석자</button>
+      <button id="tab-log" class="inactive">출석 기록</button>
+    </div>
+
+    <div id="message" class="message" style="display: none;"></div>
+
+    <div id="view-input" class="card">
+      <div style="display: flex; flex-direction: column; align-items: center; ">
+        <br>
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          class="lucide lucide-user">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <h3 style="font-size: 1.25rem; font-weight: bold; color: #1f2937; margin-bottom: 0.25rem;">학생증 바코드를 찍어주세요</h3>
+        <p style="color: #6b7280; margin-bottom: 1.5rem;"></p>
+        <div style="max-width: 400px; width: 100%;">
+          <input type="text" id="studentCodeInput" maxlength="8" style="height: 1px;" />
+          <p id="charCount" style="text-align: center; margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem; display: none;">0/8</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-current" class="card" style="display: none;">
+      <div id="current-list"></div>
+      <div id="empty-current-message" style="text-align: center; padding: 2rem 0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          class="lucide lucide-users">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <p style="color: #6b7280; margin-top: 1rem;">현재 출석한 학생이 없습니다.</p>
+      </div>
+    </div>
+
+    <div id="view-log" class="card" style="display: none;">
+      <div id="log-list"></div>
+      <div id="empty-log-message" style="text-align: center; padding: 2rem 0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          class="lucide lucide-clock">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <p style="color: #6b7280; margin-top: 1rem;">출석 기록이 없습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('studentCodeInput');
+    const charCount = document.getElementById('charCount');
+    const currentCount = document.getElementById('current-count');
+    const messageBox = document.getElementById('message');
+    const currentList = document.getElementById('current-list');
+    const logList = document.getElementById('log-list');
+
+    let students = {};
+    let attendanceLog = [];
+    let inputTimer = null;
+    const validFormat = /^\d{4}[A-Za-z]{1}\d{3}$/;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedStudents = localStorage.getItem('attendance_students');
+      const savedLog = localStorage.getItem('attendance_log');
+      if (savedStudents) students = JSON.parse(savedStudents);
+      if (savedLog) attendanceLog = JSON.parse(savedLog);
+      updateCurrentView();
+      updateLogView();
+
+      // CSV 버튼 추가
+      const exportBtn = document.createElement('button');
+      exportBtn.textContent = 'CSV 내보내기';
+      exportBtn.style.cssText = 'margin-top: 1rem; padding: 0.5rem 1rem; font-weight: bold; background: #2563eb; color: white; border: none; border-radius: 0.5rem; cursor: pointer;';
+      document.getElementById('view-log').appendChild(exportBtn);
+      exportBtn.addEventListener('click', exportToCSV);
+    });
+
+    function showMessage(text, type) {
+      messageBox.textContent = text;
+      messageBox.className = `message ${type}`;
+      messageBox.style.display = 'block';
+      setTimeout(() => messageBox.style.display = 'none', 3000);
+    }
+
+    function formatStudentCode(code) {
+      return code.length === 8 ? code.replace(/(.{4})(.{4})/, '$1$2') : code;
+    }
+
+    function updateCurrentView() {
+      currentList.innerHTML = '';
+      const keys = Object.keys(students);
+      currentCount.textContent = `${keys.length}명 재실`;
+      keys.forEach(code => {
+        const div = document.createElement('div');
+        div.className = 'entry';
+        div.innerHTML = `<span>${formatStudentCode(code)}</span><span>입실: ${students[code]}</span>`;
+        currentList.appendChild(div);
+      });
+    }
+
+    function updateLogView() {
+      logList.innerHTML = '';
+      attendanceLog.forEach(log => {
+        const div = document.createElement('div');
+        div.className = 'log';
+        div.innerHTML = `<div>${formatStudentCode(log.code)} <span class="badge ${log.action === '입실' ? 'badge-entry' : 'badge-exit'}">${log.action}</span></div><div>${log.time}</div>`;
+        logList.appendChild(div);
+      });
+    }
+
+    function handleAttendance(code) {
+      const timeStr = new Date().toLocaleString('ko-KR');
+      if (students[code]) {
+        delete students[code];
+        attendanceLog.unshift({ code, action: '퇴실', time: timeStr });
+        showMessage(`학생 ${code}님이 퇴실했습니다.`, 'success');
+      } else {
+        students[code] = timeStr;
+        attendanceLog.unshift({ code, action: '입실', time: timeStr });
+        showMessage(`학생 ${code}님이 입실했습니다.`, 'success');
+      }
+      localStorage.setItem('attendance_students', JSON.stringify(students));
+      localStorage.setItem('attendance_log', JSON.stringify(attendanceLog));
+      updateCurrentView();
+      updateLogView();
+    }
+
+    function clearInputIfInvalid() {
+      if (!validFormat.test(input.value)) {
+        input.value = '';
+        charCount.textContent = '0/8';
+      }
+    }
+
+    function replaceSpecialCases(str) {
+      return str.replace(/ㄴ/gi, 'S');
+    }
+
+    input.addEventListener('input', () => {
+      input.value = replaceSpecialCases(input.value)
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase()
+        .slice(0, 8);
+
+      charCount.textContent = `${input.value.length}/8`;
+
+      if (input.value.length === 8 && validFormat.test(input.value)) {
+        handleAttendance(input.value);
+        input.value = '';
+        charCount.textContent = '0/8';
+      }
+
+      clearTimeout(inputTimer);
+      inputTimer = setTimeout(clearInputIfInvalid, 200);
+    });
+
+    input.addEventListener('compositionend', () => {
+      input.value = replaceSpecialCases(input.value)
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase()
+        .slice(0, 8);
+      charCount.textContent = `${input.value.length}/8`;
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (/^[a-zA-Z0-9ㄴ]$/.test(e.key)) {
+        if (document.activeElement !== input) input.focus();
+      }
+    });
+
+    const views = ['input', 'current', 'log'];
+    views.forEach(view => {
+      document.getElementById(`tab-${view}`).addEventListener('click', () => {
+        views.forEach(v => {
+          document.getElementById(`tab-${v}`).className = v === view ? 'active' : 'inactive';
+          document.getElementById(`view-${v}`).style.display = v === view ? 'block' : 'none';
+        });
+      });
+    });
+
+    function exportToCSV() {
+      if (attendanceLog.length === 0) {
+        alert('출석 기록이 없습니다.');
+        return;
+      }
+
+      let csvContent = '학생코드,상태,시간\n';
+      attendanceLog.forEach(log => {
+        csvContent += `${formatStudentCode(log.code)},${log.action},${log.time}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '출석기록' + new Date().getFullYear().toString() + '-' + (new Date().getMonth() + 1).toString()+ '-' + new Date().getDate().toString() + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+  
+</body>
+
+</html>
