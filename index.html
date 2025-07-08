@@ -194,7 +194,21 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyAlw4oPUDidCJr5moJyta9Q3xxj_vVQoI8",
+      authDomain: "studyroom-b7ac5.firebaseapp.com",
+      projectId: "studyroom-b7ac5",
+      storageBucket: "studyroom-b7ac5.firebasestorage.app",
+      messagingSenderId: "237142844878",
+      appId: "1:237142844878:web:e509d149e6374dac56379f",
+      measurementId: "G-343ZEY2KC1"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
     const input = document.getElementById('studentCodeInput');
     const charCount = document.getElementById('charCount');
     const currentCount = document.getElementById('current-count');
@@ -202,26 +216,8 @@
     const currentList = document.getElementById('current-list');
     const logList = document.getElementById('log-list');
 
-    let students = {};
-    let attendanceLog = [];
-    let inputTimer = null;
     const validFormat = /^\d{4}[A-Za-z]{1}\d{3}$/;
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedStudents = localStorage.getItem('attendance_students');
-      const savedLog = localStorage.getItem('attendance_log');
-      if (savedStudents) students = JSON.parse(savedStudents);
-      if (savedLog) attendanceLog = JSON.parse(savedLog);
-      updateCurrentView();
-      updateLogView();
-
-      // CSV 버튼 추가
-      const exportBtn = document.createElement('button');
-      exportBtn.textContent = 'CSV 내보내기';
-      exportBtn.style.cssText = 'margin-top: 1rem; padding: 0.5rem 1rem; font-weight: bold; background: #2563eb; color: white; border: none; border-radius: 0.5rem; cursor: pointer;';
-      document.getElementById('view-log').appendChild(exportBtn);
-      exportBtn.addEventListener('click', exportToCSV);
-    });
+    let inputTimer = null;
 
     function showMessage(text, type) {
       messageBox.textContent = text;
@@ -234,21 +230,25 @@
       return code.length === 8 ? code.replace(/(.{4})(.{4})/, '$1$2') : code;
     }
 
-    function updateCurrentView() {
+    async function updateCurrentView() {
       currentList.innerHTML = '';
-      const keys = Object.keys(students);
-      currentCount.textContent = `${keys.length}명 재실`;
-      keys.forEach(code => {
+      const snapshot = await getDocs(collection(db, "students"));
+      const size = snapshot.size;
+      currentCount.textContent = `${size}명 재실`;
+
+      snapshot.forEach(docSnap => {
         const div = document.createElement('div');
         div.className = 'entry';
-        div.innerHTML = `<span>${formatStudentCode(code)}</span><span>입실: ${students[code]}</span>`;
+        div.innerHTML = `<span>${formatStudentCode(docSnap.id)}</span><span>입실: ${docSnap.data().time}</span>`;
         currentList.appendChild(div);
       });
     }
 
-    function updateLogView() {
+    async function updateLogView() {
       logList.innerHTML = '';
-      attendanceLog.forEach(log => {
+      const snapshot = await getDocs(query(collection(db, "log"), orderBy("timestamp", "desc")));
+      snapshot.forEach(docSnap => {
+        const log = docSnap.data();
         const div = document.createElement('div');
         div.className = 'log';
         div.innerHTML = `<div>${formatStudentCode(log.code)} <span class="badge ${log.action === '입실' ? 'badge-entry' : 'badge-exit'}">${log.action}</span></div><div>${log.time}</div>`;
@@ -256,19 +256,32 @@
       });
     }
 
-    function handleAttendance(code) {
-      const timeStr = new Date().toLocaleString('ko-KR');
-      if (students[code]) {
-        delete students[code];
-        attendanceLog.unshift({ code, action: '퇴실', time: timeStr });
+    async function handleAttendance(code) {
+      const docRef = doc(db, "students", code);
+      const docSnap = await getDoc(docRef);
+      const now = new Date();
+      const timeStr = now.toLocaleString('ko-KR');
+
+      if (docSnap.exists()) {
+        await deleteDoc(docRef);
+        await addDoc(collection(db, "log"), {
+          code,
+          action: '퇴실',
+          time: timeStr,
+          timestamp: now
+        });
         showMessage(`학생 ${code}님이 퇴실했습니다.`, 'success');
       } else {
-        students[code] = timeStr;
-        attendanceLog.unshift({ code, action: '입실', time: timeStr });
+        await setDoc(docRef, { time: timeStr });
+        await addDoc(collection(db, "log"), {
+          code,
+          action: '입실',
+          time: timeStr,
+          timestamp: now
+        });
         showMessage(`학생 ${code}님이 입실했습니다.`, 'success');
       }
-      localStorage.setItem('attendance_students', JSON.stringify(students));
-      localStorage.setItem('attendance_log', JSON.stringify(attendanceLog));
+
       updateCurrentView();
       updateLogView();
     }
@@ -326,14 +339,16 @@
       });
     });
 
-    function exportToCSV() {
-      if (attendanceLog.length === 0) {
+    async function exportToCSV() {
+      const snapshot = await getDocs(query(collection(db, "log"), orderBy("timestamp", "desc")));
+      if (snapshot.empty) {
         alert('출석 기록이 없습니다.');
         return;
       }
 
       let csvContent = '학생코드,상태,시간\n';
-      attendanceLog.forEach(log => {
+      snapshot.forEach(docSnap => {
+        const log = docSnap.data();
         csvContent += `${formatStudentCode(log.code)},${log.action},${log.time}\n`;
       });
 
@@ -341,10 +356,21 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = '출석기록' + new Date().getFullYear().toString() + '-' + (new Date().getMonth() + 1).toString()+ '-' + new Date().getDate().toString() + '.csv';
+      a.download = `출석기록${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     }
+
+    // 초기 렌더
+    updateCurrentView();
+    updateLogView();
+
+    // CSV 버튼 추가
+    const exportBtn = document.createElement('button');
+    exportBtn.textContent = 'CSV 내보내기';
+    exportBtn.style.cssText = 'margin-top: 1rem; padding: 0.5rem 1rem; font-weight: bold; background: #2563eb; color: white; border: none; border-radius: 0.5rem; cursor: pointer;';
+    document.getElementById('view-log').appendChild(exportBtn);
+    exportBtn.addEventListener('click', exportToCSV);
   </script>
   
 </body>
