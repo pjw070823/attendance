@@ -14,7 +14,7 @@
     }
 
     .container {
-      max-width: 800px;
+      max-width: 1000px;
       margin: auto;
     }
 
@@ -71,12 +71,10 @@
       font-size: 1.25rem;
       font-size: 1px;
       text-align: center;
-      /* border: 2px solid #d1d5db; */
       border: 0px solid #d1d5db;
       border-radius: 0.75rem;
       font-family: monospace;
       text-transform: uppercase;
-      /* box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); */
       outline: none;
       caret-color: transparent;
       ime-mode: disabled;
@@ -122,6 +120,150 @@
     #log-list:not(:empty)+#empty-log-message {
       display: none;
     }
+
+    /* 자리 선택 모달 */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      max-width: 900px;
+      width: 95%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .seat-table {
+      border-collapse: separate;
+      border-spacing: 2px;
+      margin: 1rem auto;
+    }
+
+    .seat-table td {
+      width: 35px;
+      height: 35px;
+      text-align: center;
+      vertical-align: middle;
+      padding: 0;
+    }
+
+    .seat {
+      width: 100%;
+      height: 100%;
+      border: 2px solid #e5e7eb;
+      border-radius: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.75rem;
+    }
+
+    .seat.available {
+      background-color: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #065f46;
+    }
+
+    .seat.available:hover {
+      background-color: #dcfce7;
+      border-color: #86efac;
+    }
+
+    .seat.occupied {
+      background-color: #fee2e2;
+      border-color: #fecaca;
+      color: #991b1b;
+      cursor: not-allowed;
+    }
+
+    .seat.my-seat {
+      background-color: #dbeafe;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+    }
+
+    .empty-cell {
+      background: transparent;
+      border: none;
+    }
+
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background-color: #2563eb;
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: #e5e7eb;
+      color: #4b5563;
+    }
+
+    /* 자리 현황 표시 */
+    .seat-status {
+      margin: 1rem 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    .seat-status .seat-table td {
+      width: 25px;
+      height: 25px;
+    }
+
+    .seat-status .seat {
+      font-size: 0.6rem;
+      cursor: default;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1rem 0;
+      font-size: 0.875rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .legend-box {
+      width: 16px;
+      height: 16px;
+      border-radius: 0.25rem;
+      border: 1px solid;
+    }
   </style>
 </head>
 
@@ -137,6 +279,22 @@
           0명 재실
         </div>
       </div>
+
+      <!-- 자리 현황 표시 -->
+      <div style="margin-top: 1.5rem;">
+        <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">자리 현황</h3>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-box" style="background-color: #f0fdf4; border-color: #bbf7d0;"></div>
+            <span>빈자리</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-box" style="background-color: #fee2e2; border-color: #fecaca;"></div>
+            <span>사용중</span>
+          </div>
+        </div>
+        <div id="seat-status" class="seat-status"></div>
+      </div>
     </div>
 
     <div class="tabs" style="margin-bottom: 1.5rem;">
@@ -148,7 +306,7 @@
     <div id="message" class="message" style="display: none;"></div>
 
     <div id="view-input" class="card">
-      <div style="display: flex; flex-direction: column; align-items: center; ">
+      <div style="display: flex; flex-direction: column; align-items: center;">
         <br>
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -156,11 +314,14 @@
           <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
           <circle cx="12" cy="7" r="4"></circle>
         </svg>
-        <h3 style="font-size: 1.25rem; font-weight: bold; color: #1f2937; margin-bottom: 0.25rem;">학생증 바코드를 찍어주세요</h3>
+        <h3 style="font-size: 1.25rem; font-weight: bold; color: #1f2937; margin-bottom: 0.25rem;">학생증 바코드를
+          찍어주세요</h3>
         <p style="color: #6b7280; margin-bottom: 1.5rem;"></p>
         <div style="max-width: 400px; width: 100%;">
           <input type="text" id="studentCodeInput" maxlength="8" style="height: 1px;" />
-          <p id="charCount" style="text-align: center; margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem; display: none;">0/8</p>
+          <p id="charCount"
+            style="text-align: center; margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem; display: none;">
+            0/8</p>
         </div>
       </div>
     </div>
@@ -194,9 +355,24 @@
     </div>
   </div>
 
+  <!-- 자리 선택 모달 -->
+  <div id="seat-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3 style="margin-top: 0; text-align: center;">자리를 선택해주세요</h3>
+      <p style="text-align: center; color: #6b7280; margin-bottom: 1rem;">
+        학생코드: <span id="modal-student-code"></span>
+      </p>
+      <div id="seat-table-container" class="seat-table-container"></div>
+      <div class="modal-buttons">
+        <button id="cancel-btn" class="btn btn-secondary">취소</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
     const firebaseConfig = {
       apiKey: "AIzaSyAlw4oPUDidCJr5moJyta9Q3xxj_vVQoI8",
       authDomain: "studyroom-b7ac5.firebaseapp.com",
@@ -206,6 +382,7 @@
       appId: "1:237142844878:web:e509d149e6374dac56379f",
       measurementId: "G-343ZEY2KC1"
     };
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -215,9 +392,31 @@
     const messageBox = document.getElementById('message');
     const currentList = document.getElementById('current-list');
     const logList = document.getElementById('log-list');
+    const seatModal = document.getElementById('seat-modal');
+    const seatTableContainer = document.getElementById('seat-table-container');
+    const modalStudentCode = document.getElementById('modal-student-code');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const seatStatus = document.getElementById('seat-status');
 
     const validFormat = /^\d{4}[A-Za-z]{1}\d{3}$/;
+    const totalSeats = 65;
     let inputTimer = null;
+    let currentStudentCode = null;
+
+    const seatLayout = [
+      [0, 0, 0, 0, 17, 16, 15, 14, 0, 13, 12, 11, 10, 0, 1], // row 0
+      [58, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2], // row 1
+      [60, 61, 0, 0, 25, 24, 23, 22, 21, 20, 19, 18, 0, 0, 3], // row 2
+      [0, 0, 0, 0, 33, 32, 31, 30, 29, 28, 27, 26, 0, 0, 4], // row 3
+      [62, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],
+      [64, 65, 0, 0, 54, 50, 0, 46, 42, 0, 38, 34, 0, 0, 6], // row 4
+      [0, 0, 0, 0, 55, 51, 0, 47, 43, 0, 39, 35, 0, 0, 7], // row 5
+      [0, 0, 0, 0, 56, 52, 0, 48, 44, 0, 40, 36, 0, 0, 8], // row 6
+      [0, 0, 0, 0, 57, 53, 0, 49, 45, 0, 41, 37, 0, 0, 9], // row 7
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  // row 8
+    ];
+
+
 
     function showMessage(text, type) {
       messageBox.textContent = text;
@@ -230,6 +429,107 @@
       return code.length === 8 ? code.replace(/(.{4})(.{4})/, '$1$2') : code;
     }
 
+    function createSeatTable(occupiedSeats, isModal = false) {
+      const table = document.createElement('table');
+      table.className = 'seat-table';
+
+      seatLayout.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+
+        row.forEach((seatNum, colIndex) => {
+          const td = document.createElement('td');
+
+          if (seatNum === 0) {
+            // 빈 셀
+            td.className = 'empty-cell';
+          } else {
+            // 자리가 있는 셀
+            const seatDiv = document.createElement('div');
+            seatDiv.className = `seat ${occupiedSeats.has(seatNum) ? 'occupied' : 'available'}`;
+            seatDiv.textContent = seatNum;
+
+            if (isModal && !occupiedSeats.has(seatNum)) {
+              seatDiv.addEventListener('click', () => selectSeat(seatNum));
+            }
+
+            td.appendChild(seatDiv);
+          }
+
+          tr.appendChild(td);
+        });
+
+        table.appendChild(tr);
+      });
+
+      return table;
+    }
+
+    async function updateSeatStatus() {
+      const snapshot = await getDocs(collection(db, "students"));
+      const occupiedSeats = new Set();
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.seat) {
+          occupiedSeats.add(data.seat);
+        }
+      });
+
+      seatStatus.innerHTML = '';
+      const table = createSeatTable(occupiedSeats, false);
+      seatStatus.appendChild(table);
+    }
+
+    async function showSeatModal(studentCode) {
+      currentStudentCode = studentCode;
+      modalStudentCode.textContent = formatStudentCode(studentCode);
+
+      const snapshot = await getDocs(collection(db, "students"));
+      const occupiedSeats = new Set();
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.seat) {
+          occupiedSeats.add(data.seat);
+        }
+      });
+
+      seatTableContainer.innerHTML = '';
+      const table = createSeatTable(occupiedSeats, true);
+      seatTableContainer.appendChild(table);
+
+      seatModal.style.display = 'flex';
+    }
+
+    async function selectSeat(seatNumber) {
+      if (!currentStudentCode) return;
+
+      const now = new Date();
+      const timeStr = now.toLocaleString('ko-KR');
+
+      await setDoc(doc(db, "students", currentStudentCode), {
+        time: timeStr,
+        seat: seatNumber
+      });
+
+      await addDoc(collection(db, "log"), {
+        code: currentStudentCode,
+        action: '입실',
+        time: timeStr,
+        seat: seatNumber,
+        timestamp: now
+      });
+
+      showMessage(`학생 ${currentStudentCode}님이 ${seatNumber}번 자리에 입실했습니다.`, 'success');
+
+      seatModal.style.display = 'none';
+      currentStudentCode = null;
+
+      updateCurrentView();
+      updateLogView();
+      updateSeatStatus();
+    }
+
     async function updateCurrentView() {
       currentList.innerHTML = '';
       const snapshot = await getDocs(collection(db, "students"));
@@ -237,9 +537,13 @@
       currentCount.textContent = `${size}명 재실`;
 
       snapshot.forEach(docSnap => {
+        const data = docSnap.data();
         const div = document.createElement('div');
         div.className = 'entry';
-        div.innerHTML = `<span>${formatStudentCode(docSnap.id)}</span><span>입실: ${docSnap.data().time}</span>`;
+        div.innerHTML = `
+          <span>${formatStudentCode(docSnap.id)} ${data.seat ? `(${data.seat}번 자리)` : ''}</span>
+          <span>입실: ${data.time}</span>
+        `;
         currentList.appendChild(div);
       });
     }
@@ -251,7 +555,14 @@
         const log = docSnap.data();
         const div = document.createElement('div');
         div.className = 'log';
-        div.innerHTML = `<div>${formatStudentCode(log.code)} <span class="badge ${log.action === '입실' ? 'badge-entry' : 'badge-exit'}">${log.action}</span></div><div>${log.time}</div>`;
+        div.innerHTML = `
+          <div>
+            ${formatStudentCode(log.code)} 
+            ${log.seat ? `(${log.seat}번 자리)` : ''} 
+            <span class="badge ${log.action === '입실' ? 'badge-entry' : 'badge-exit'}">${log.action}</span>
+          </div>
+          <div>${log.time}</div>
+        `;
         logList.appendChild(div);
       });
     }
@@ -263,27 +574,25 @@
       const timeStr = now.toLocaleString('ko-KR');
 
       if (docSnap.exists()) {
+        // 퇴실 처리
+        const data = docSnap.data();
         await deleteDoc(docRef);
         await addDoc(collection(db, "log"), {
           code,
           action: '퇴실',
           time: timeStr,
+          seat: data.seat || null,
           timestamp: now
         });
         showMessage(`학생 ${code}님이 퇴실했습니다.`, 'success');
-      } else {
-        await setDoc(docRef, { time: timeStr });
-        await addDoc(collection(db, "log"), {
-          code,
-          action: '입실',
-          time: timeStr,
-          timestamp: now
-        });
-        showMessage(`학생 ${code}님이 입실했습니다.`, 'success');
-      }
 
-      updateCurrentView();
-      updateLogView();
+        updateCurrentView();
+        updateLogView();
+        updateSeatStatus();
+      } else {
+        // 입실 처리 - 자리 선택 모달 표시
+        showSeatModal(code);
+      }
     }
 
     function clearInputIfInvalid() {
@@ -329,6 +638,12 @@
       }
     });
 
+    cancelBtn.addEventListener('click', () => {
+      seatModal.style.display = 'none';
+      currentStudentCode = null;
+    });
+
+    // 탭 기능
     const views = ['input', 'current', 'log'];
     views.forEach(view => {
       document.getElementById(`tab-${view}`).addEventListener('click', () => {
@@ -346,10 +661,10 @@
         return;
       }
 
-      let csvContent = '학생코드,상태,시간\n';
+      let csvContent = '학생코드,상태,자리,시간\n';
       snapshot.forEach(docSnap => {
         const log = docSnap.data();
-        csvContent += `${formatStudentCode(log.code)},${log.action},${log.time}\n`;
+        csvContent += `${formatStudentCode(log.code)},${log.action},${log.seat || ''},${log.time}\n`;
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -364,6 +679,7 @@
     // 초기 렌더
     updateCurrentView();
     updateLogView();
+    updateSeatStatus();
 
     // CSV 버튼 추가
     const exportBtn = document.createElement('button');
@@ -372,7 +688,7 @@
     document.getElementById('view-log').appendChild(exportBtn);
     exportBtn.addEventListener('click', exportToCSV);
   </script>
-  
+
 </body>
 
 </html>
